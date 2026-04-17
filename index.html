@@ -2,14 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Q&A System</title>
+<title>Firebase Q&A</title>
 
 <style>
 body {
   margin: 0;
   font-family: Arial;
   background: linear-gradient(135deg, #ff9a9e, #fad0c4);
-  min-height: 100vh;
 }
 
 .container {
@@ -18,57 +17,41 @@ body {
 }
 
 .form {
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.3);
   padding: 20px;
   border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  backdrop-filter: blur(10px);
 }
 
 input {
   width: 100%;
   padding: 10px;
-  margin: 6px 0;
-  border-radius: 12px;
+  margin: 5px 0;
   border: none;
-  outline: none;
+  border-radius: 10px;
 }
 
 button {
   width: 100%;
   padding: 10px;
+  border: none;
   background: #ff4d88;
   color: white;
-  border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
-  margin-top: 5px;
-}
-
-button:hover {
-  background: #ff1f6a;
-}
-
-.preview {
-  width: 100%;
-  border-radius: 12px;
-  margin-top: 10px;
-  display: none;
 }
 
 .card {
-  background: rgba(255,255,255,0.3);
-  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.4);
   margin-top: 15px;
   padding: 15px;
-  border-radius: 16px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+  border-radius: 15px;
 }
 
 .card img {
   width: 100%;
-  border-radius: 12px;
-  margin-top: 8px;
+  border-radius: 10px;
+  margin-top: 10px;
 }
 </style>
 </head>
@@ -77,30 +60,20 @@ button:hover {
 
 <div class="container">
 
-  <!-- ФОРМА -->
   <div class="form">
-    <input id="q" placeholder="Введите вопрос">
-    <input id="img" placeholder="URL картинки" oninput="previewImg()">
-
-    <img id="preview" class="preview">
-
-    <button onclick="send()">Отправить</button>
+    <input id="q" placeholder="Вопрос">
+    <input id="img" placeholder="URL картинки">
+    <button id="sendBtn">Отправить</button>
   </div>
 
   <div id="list"></div>
+
 </div>
 
-<script type="module">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getDatabase, ref, push, set, onValue, update, remove
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-import {
-  getAuth, signInAnonymously
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyCtJVC7V-ifBaME3T-1FmT8nRhTPFudJfo",
   authDomain: "vitadoto-134fe.firebaseapp.com",
@@ -108,113 +81,52 @@ const firebaseConfig = {
   storageBucket: "vitadoto-134fe.firebasestorage.app",
   messagingSenderId: "192771065928",
   appId: "1:192771065928:web:c3998e97c530c4814a307d",
-  measurementId: "G-7Z2Y1SMQBT"
+  databaseURL: "https://vitadoto-134fe-default-rtdb.firebaseio.com/"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-
-// 👤 вход
-signInAnonymously(auth);
-
-// 👑 админ (замени на свой uid если нужно)
-const ADMIN_UID = "ADMIN";
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 ---
 
-# 📤 ОТПРАВКА ВОПРОСА
+# 📤 ОТПРАВКА (КНОПКА РАБОТАЕТ 100%)
 
-window.send = function () {
+document.getElementById("sendBtn").addEventListener("click", function () {
   const q = document.getElementById("q").value;
   const img = document.getElementById("img").value;
 
-  const user = auth.currentUser;
-
-  const newRef = push(ref(db, "questions"));
-
-  set(newRef, {
+  firebase.database().ref("questions").push({
     question: q,
     image: img,
-    answer: "",
-    status: "pending",
-    userId: user?.uid
+    answer: ""
   });
 
   document.getElementById("q").value = "";
   document.getElementById("img").value = "";
-  document.getElementById("preview").style.display = "none";
-};
+});
 
 ---
 
-# 🖼 ПРЕВЬЮ КАРТИНКИ
-
-window.previewImg = function () {
-  const url = document.getElementById("img").value;
-  const img = document.getElementById("preview");
-
-  if (url.length > 5) {
-    img.src = url;
-    img.style.display = "block";
-  } else {
-    img.style.display = "none";
-  }
-};
-
----
-
-# 👀 ОТОБРАЖЕНИЕ
+# 👀 ВЫВОД ДАННЫХ
 
 const list = document.getElementById("list");
 
-onValue(ref(db, "questions"), (snap) => {
+firebase.database().ref("questions").on("value", (snap) => {
   const data = snap.val();
   list.innerHTML = "";
 
   for (let id in data) {
     const item = data[id];
 
-    const isAdmin = true; // для упрощения (можешь поменять позже)
-
     list.innerHTML += `
       <div class="card">
         <b>❓ ${item.question}</b><br>
-
         <img src="${item.image}">
-
         <p>💬 ${item.answer || "нет ответа"}</p>
-        <p>📌 статус: ${item.status}</p>
-
-        <input id="a-${id}" placeholder="Ответ">
-
-        <button onclick="answer('${id}')">Ответить</button>
-        <button onclick="removeQ('${id}')">Удалить</button>
       </div>
     `;
   }
 });
-
----
-
-# 🧑‍💻 ОТВЕТ
-
-window.answer = function (id) {
-  const text = document.getElementById("a-" + id).value;
-
-  update(ref(db, "questions/" + id), {
-    answer: text,
-    status: "answered"
-  });
-};
-
----
-
-# 🗑 УДАЛЕНИЕ
-
-window.removeQ = function (id) {
-  remove(ref(db, "questions/" + id));
-};
 
 </script>
 

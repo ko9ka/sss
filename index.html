@@ -1,32 +1,14 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <title>Система заявок Firebase</title>
-</head>
-<body>
+<input id="q" placeholder="Ваш вопрос">
+<input id="img" placeholder="URL картинки">
+<button onclick="send()">Отправить</button>
 
-<h2>Создать заявку</h2>
-
-<input id="name" placeholder="Имя">
-<input id="msg" placeholder="Сообщение">
-<button onclick="createRequest()">Отправить</button>
-
-<hr>
-
-<h2>Заявки</h2>
 <div id="list"></div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getDatabase,
-  ref,
-  push,
-  set,
-  update,
-  onValue
+  getDatabase, ref, push, set, onValue, update
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -36,8 +18,7 @@ const firebaseConfig = {
   storageBucket: "vitadoto-134fe.firebasestorage.app",
   messagingSenderId: "192771065928",
   appId: "1:192771065928:web:c3998e97c530c4814a307d",
-  measurementId: "G-7Z2Y1SMQBT",
-  databaseURL: "https://vitadoto-134fe-default-rtdb.firebaseio.com/"
+  measurementId: "G-7Z2Y1SMQBT"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -45,61 +26,59 @@ const db = getDatabase(app);
 
 ---
 
-# ⚙️ 1. СОЗДАНИЕ ЗАЯВКИ
+# 📤 1. ОТПРАВКА ВОПРОСА
 
-window.createRequest = function () {
-  const name = document.getElementById("name").value;
-  const msg = document.getElementById("msg").value;
+window.send = function () {
+  const q = document.getElementById("q").value;
+  const img = document.getElementById("img").value;
 
-  if (!name || !msg) return;
-
-  const newRef = push(ref(db, "requests"));
+  const newRef = push(ref(db, "questions"));
 
   set(newRef, {
-    studentName: name,
-    message: msg,
-    status: "pending",
-    createdAt: Date.now()
+    question: q,
+    image: img,
+    answer: "",
+    status: "pending"
   });
 };
 
 ---
 
-# ⚙️ 2. ИЗМЕНЕНИЕ СТАТУСА
-
-window.updateStatus = function (id, status) {
-  update(ref(db, "requests/" + id), {
-    status: status
-  });
-};
-
----
-
-# 👀 3. ОТОБРАЖЕНИЕ В РЕАЛЬНОМ ВРЕМЕНИ
+# 👀 2. ПОКАЗ ВСЕХ ВОПРОСОВ
 
 const list = document.getElementById("list");
 
-onValue(ref(db, "requests"), (snapshot) => {
-  const data = snapshot.val();
+onValue(ref(db, "questions"), (snap) => {
+  const data = snap.val();
   list.innerHTML = "";
 
   for (let id in data) {
     const item = data[id];
 
     list.innerHTML += `
-      <div style="border:1px solid #000; padding:10px; margin:5px">
-        <b>${item.studentName}</b><br>
-        ${item.message}<br>
-        Статус: <b>${item.status}</b><br>
+      <div style="border:1px solid #000; margin:10px; padding:10px">
+        <img src="${item.image}" width="120"><br>
+        <b>Вопрос:</b> ${item.question}<br>
+        <b>Ответ:</b> ${item.answer || "нет ответа"}<br>
 
-        <button onclick="updateStatus('${id}','approved')">Одобрить</button>
-        <button onclick="updateStatus('${id}','rejected')">Отклонить</button>
+        <input id="a-${id}" placeholder="Ответ админа">
+        <button onclick="answer('${id}')">Ответить</button>
       </div>
     `;
   }
 });
 
-</script>
+---
 
-</body>
-</html>
+# 🧑‍💻 3. ОТВЕТ АДМИНА
+
+window.answer = function (id) {
+  const text = document.getElementById("a-" + id).value;
+
+  update(ref(db, "questions/" + id), {
+    answer: text,
+    status: "answered"
+  });
+};
+
+</script>

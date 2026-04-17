@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Система заявок Firebase</title>
+</head>
+<body>
+
+<h2>Создать заявку</h2>
+
+<input id="name" placeholder="Имя">
+<input id="msg" placeholder="Сообщение">
+<button onclick="createRequest()">Отправить</button>
+
+<hr>
+
+<h2>Заявки</h2>
+<div id="list"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  update,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtJVC7V-ifBaME3T-1FmT8nRhTPFudJfo",
+  authDomain: "vitadoto-134fe.firebaseapp.com",
+  projectId: "vitadoto-134fe",
+  storageBucket: "vitadoto-134fe.firebasestorage.app",
+  messagingSenderId: "192771065928",
+  appId: "1:192771065928:web:c3998e97c530c4814a307d",
+  measurementId: "G-7Z2Y1SMQBT",
+  databaseURL: "https://vitadoto-134fe-default-rtdb.firebaseio.com/"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+---
+
+# ⚙️ 1. СОЗДАНИЕ ЗАЯВКИ
+
+window.createRequest = function () {
+  const name = document.getElementById("name").value;
+  const msg = document.getElementById("msg").value;
+
+  if (!name || !msg) return;
+
+  const newRef = push(ref(db, "requests"));
+
+  set(newRef, {
+    studentName: name,
+    message: msg,
+    status: "pending",
+    createdAt: Date.now()
+  });
+};
+
+---
+
+# ⚙️ 2. ИЗМЕНЕНИЕ СТАТУСА
+
+window.updateStatus = function (id, status) {
+  update(ref(db, "requests/" + id), {
+    status: status
+  });
+};
+
+---
+
+# 👀 3. ОТОБРАЖЕНИЕ В РЕАЛЬНОМ ВРЕМЕНИ
+
+const list = document.getElementById("list");
+
+onValue(ref(db, "requests"), (snapshot) => {
+  const data = snapshot.val();
+  list.innerHTML = "";
+
+  for (let id in data) {
+    const item = data[id];
+
+    list.innerHTML += `
+      <div style="border:1px solid #000; padding:10px; margin:5px">
+        <b>${item.studentName}</b><br>
+        ${item.message}<br>
+        Статус: <b>${item.status}</b><br>
+
+        <button onclick="updateStatus('${id}','approved')">Одобрить</button>
+        <button onclick="updateStatus('${id}','rejected')">Отклонить</button>
+      </div>
+    `;
+  }
+});
+
+</script>
+
+</body>
+</html>

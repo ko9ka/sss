@@ -1,15 +1,105 @@
-<input id="q" placeholder="Ваш вопрос">
-<input id="img" placeholder="URL картинки">
-<button onclick="send()">Отправить</button>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Q&A System</title>
 
-<div id="list"></div>
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+  min-height: 100vh;
+}
+
+.container {
+  width: 420px;
+  margin: 30px auto;
+}
+
+.form {
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #ff4d88;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+button:hover {
+  background: #ff1f6a;
+}
+
+.preview {
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 10px;
+  display: none;
+}
+
+.card {
+  background: rgba(255,255,255,0.3);
+  backdrop-filter: blur(10px);
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.card img {
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- ФОРМА -->
+  <div class="form">
+    <input id="q" placeholder="Введите вопрос">
+    <input id="img" placeholder="URL картинки" oninput="previewImg()">
+
+    <img id="preview" class="preview">
+
+    <button onclick="send()">Отправить</button>
+  </div>
+
+  <div id="list"></div>
+</div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getDatabase, ref, push, set, onValue, update
+  getDatabase, ref, push, set, onValue, update, remove
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+import {
+  getAuth, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtJVC7V-ifBaME3T-1FmT8nRhTPFudJfo",
@@ -23,14 +113,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+
+// 👤 вход
+signInAnonymously(auth);
+
+// 👑 админ (замени на свой uid если нужно)
+const ADMIN_UID = "ADMIN";
 
 ---
 
-# 📤 1. ОТПРАВКА ВОПРОСА
+# 📤 ОТПРАВКА ВОПРОСА
 
 window.send = function () {
   const q = document.getElementById("q").value;
   const img = document.getElementById("img").value;
+
+  const user = auth.currentUser;
 
   const newRef = push(ref(db, "questions"));
 
@@ -38,13 +137,34 @@ window.send = function () {
     question: q,
     image: img,
     answer: "",
-    status: "pending"
+    status: "pending",
+    userId: user?.uid
   });
+
+  document.getElementById("q").value = "";
+  document.getElementById("img").value = "";
+  document.getElementById("preview").style.display = "none";
 };
 
 ---
 
-# 👀 2. ПОКАЗ ВСЕХ ВОПРОСОВ
+# 🖼 ПРЕВЬЮ КАРТИНКИ
+
+window.previewImg = function () {
+  const url = document.getElementById("img").value;
+  const img = document.getElementById("preview");
+
+  if (url.length > 5) {
+    img.src = url;
+    img.style.display = "block";
+  } else {
+    img.style.display = "none";
+  }
+};
+
+---
+
+# 👀 ОТОБРАЖЕНИЕ
 
 const list = document.getElementById("list");
 
@@ -55,14 +175,21 @@ onValue(ref(db, "questions"), (snap) => {
   for (let id in data) {
     const item = data[id];
 
-    list.innerHTML += `
-      <div style="border:1px solid #000; margin:10px; padding:10px">
-        <img src="${item.image}" width="120"><br>
-        <b>Вопрос:</b> ${item.question}<br>
-        <b>Ответ:</b> ${item.answer || "нет ответа"}<br>
+    const isAdmin = true; // для упрощения (можешь поменять позже)
 
-        <input id="a-${id}" placeholder="Ответ админа">
+    list.innerHTML += `
+      <div class="card">
+        <b>❓ ${item.question}</b><br>
+
+        <img src="${item.image}">
+
+        <p>💬 ${item.answer || "нет ответа"}</p>
+        <p>📌 статус: ${item.status}</p>
+
+        <input id="a-${id}" placeholder="Ответ">
+
         <button onclick="answer('${id}')">Ответить</button>
+        <button onclick="removeQ('${id}')">Удалить</button>
       </div>
     `;
   }
@@ -70,7 +197,7 @@ onValue(ref(db, "questions"), (snap) => {
 
 ---
 
-# 🧑‍💻 3. ОТВЕТ АДМИНА
+# 🧑‍💻 ОТВЕТ
 
 window.answer = function (id) {
   const text = document.getElementById("a-" + id).value;
@@ -81,4 +208,15 @@ window.answer = function (id) {
   });
 };
 
+---
+
+# 🗑 УДАЛЕНИЕ
+
+window.removeQ = function (id) {
+  remove(ref(db, "questions/" + id));
+};
+
 </script>
+
+</body>
+</html>
